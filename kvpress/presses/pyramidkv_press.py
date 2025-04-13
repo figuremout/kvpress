@@ -36,8 +36,10 @@ class PyramidKVPress(SnapKVPress):
         """
         Compute the budget for each layer based on the pyramid shape.
         """
+        assert self.beta >= 1, "Beta should >= 1"
+
         # Ensure the total budget meets the compression_ratio requirements
-        max_capacity_prompt = self.window_size + round(q_len * (1 - self.compression_ratio))
+        max_capacity_prompt = self.window_size + int(q_len * (1 - self.compression_ratio))
 
         min_num = (max_capacity_prompt - self.window_size) // self.beta
         max_num = (max_capacity_prompt - self.window_size) * 2 - min_num
@@ -45,6 +47,11 @@ class PyramidKVPress(SnapKVPress):
         if max_num >= q_len - self.window_size:
             max_num = q_len - self.window_size
             min_num = (max_capacity_prompt - self.window_size) * 2 - max_num
+
+        if not (q_len >= max_num >= min_num >= self.window_size):
+            # Fall back to SnapKV
+            max_num = int(q_len * (1 - self.compression_ratio))
+            min_num = max_num
 
         steps = (max_num - min_num) // (module.config.num_hidden_layers - 1)
         return max_num - module.layer_idx * steps
