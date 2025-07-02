@@ -39,6 +39,12 @@ from kvpress import (
     TOVAPress,
     BlockPress,
     KeyDiffPress,
+    ScorerSizePress,
+    KCMSizePress,
+    SnapKVSizePress,
+    H2OSizePress,
+    KeyDiffSizePress,
+    Compose_ThinKPress
 )
 
 logger = logging.getLogger(__name__)
@@ -88,6 +94,12 @@ PRESS_DICT = {
     "finch": FinchPress(),
     "keydiff": KeyDiffPress(),
     "block_keydiff": BlockPress(press=KeyDiffPress(), block_size=128),
+    "kcmsize": KCMSizePress(),
+    "snapkvsize": SnapKVSizePress(),
+    "h2osize": H2OSizePress(block_size=2048),
+    "keydiffsize": KeyDiffSizePress(),
+    "kcmsize_think": Compose_ThinKPress(press=KCMSizePress()),
+    "snapkvsize_think": Compose_ThinKPress(press=SnapKVSizePress()),
 }
 
 
@@ -103,6 +115,7 @@ def evaluate(
     max_context_length: Optional[int] = None,
     compress_questions: bool = False,
     key_channel_compression_ratio: float = 0.5,
+    cache_size: int = 1024,
 ):
     """
     Evaluate a model on a dataset using a press and save the results
@@ -131,6 +144,8 @@ def evaluate(
         Whether to compress the questions as well, by default False
     key_channel_compression_ratio : float, optional
         key Channel Compression ratio for the channel press, by default 0.5
+    cache_size: int, optional
+        Size of the cache to use for the press based on the cache size, by default 1024
     """
 
     assert dataset in DATASET_DICT, f"No dataset found for {dataset}"
@@ -150,7 +165,11 @@ def evaluate(
         logger.warning(f"Results already exist at {save_filename}")
 
     # Load dataframe
-    df = load_dataset(DATASET_DICT[dataset], data_dir=data_dir, split="test").to_pandas()
+    if dataset == "longbench":
+        # Fix the dataset revision to ensure consistent results
+        df = load_dataset(DATASET_DICT[dataset], data_dir=data_dir, split="test", revision="b99f818").to_pandas()
+    else:
+        df = load_dataset(DATASET_DICT[dataset], data_dir=data_dir, split="test").to_pandas()
     if fraction < 1.0:
         df = df.sample(frac=fraction, random_state=42)
         save_filename = save_filename.with_name(save_filename.stem + f"__fraction{fraction:.2f}" + save_filename.suffix)
@@ -179,6 +198,17 @@ def evaluate(
         press.key_channel_compression_ratio = key_channel_compression_ratio
         save_filename = save_filename.with_name(
             save_filename.stem + f"__channel{key_channel_compression_ratio}" + save_filename.suffix
+        )
+    elif isinstance(press, (ScorerSizePress)):
+        press.cache_size = cache_size
+        save_filename = save_filename.with_name(
+            save_filename.stem + f"__size{cache_size}" + save_filename.suffix
+        )
+    elif isinstance(press, (Compose_ThinKPress)):
+        press.press.cache_size = cache_size
+        press.key_channel_compression_ratio = key_channel_compression_ratio
+        save_filename = save_filename.with_name(
+            save_filename.stem + f"__size{cache_size}__channel{key_channel_compression_ratio}" + save_filename.suffix
         )
     else:
         press.compression_ratio = compression_ratio  # type:ignore[attr-defined]

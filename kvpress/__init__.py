@@ -30,6 +30,7 @@ from kvpress.presses.lagkv_press import LagKVPress
 from kvpress.presses.base_press import SUPPORTED_MODELS
 from kvpress.presses.block_press import BlockPress
 from kvpress.presses.keydiff_press import KeyDiffPress
+from kvpress.presses.paper_press import ScorerSizePress, KCMSizePress, SnapKVSizePress, H2OSizePress, KeyDiffSizePress, Compose_ThinKPress
 
 # Patch the attention functions to support head-wise compression
 patch_attention_functions()
@@ -62,4 +63,10 @@ __all__ = [
     "LagKVPress",
     "BlockPress",
     "KeyDiffPress",
+    "ScorerSizePress",
+    "KCMSizePress",
+    "SnapKVSizePress",
+    "H2OSizePress",
+    "KeyDiffSizePress",
+    "Compose_ThinKPress"
 ]
